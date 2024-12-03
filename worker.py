@@ -1,5 +1,7 @@
 import argparse
-
+import aiohttp
+import asyncio
+import os
 
 class Worker:
     """Processes log chunks and reports results"""
