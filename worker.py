@@ -16,11 +16,36 @@ class Worker:
 
     async def process_chunk(self, filepath: str, start: int, size: int) -> dict:
         """Process a chunk of log file and return metrics"""
-        pass
+        with open(filepath, "r") as file:
+            file.seek(start)
+            chunk = file.read(size)
+            lines = chunk.strip().split("\n")
+
+            metrics = {"error_count": 0, "response_times": [], "request_count": 0}
+            for line in lines:
+                if "ERROR" in line:
+                    metrics["error_count"] += 1
+                if "Request processed in" in line:
+                    time_taken = int(line.split("in")[-1].strip("ms"))
+                    metrics["response_times"].append(time_taken)
+                    metrics["request_count"] += 1
+
+            avg_response_time = sum(metrics["response_times"]) / len(metrics["response_times"]) if metrics["response_times"] else 0
+            return {
+                "error_rate": metrics["error_count"] / len(lines),
+                "avg_response_time": avg_response_time,
+                "request_count": metrics["request_count"]
+            }
 
     async def report_health(self) -> None:
         """Send heartbeat to coordinator"""
-        pass
+        while True:
+            async with aiohttp.ClientSession() as session:
+                try:
+                    await session.post(f"{self.coordinator_url}/heartbeat", json={"worker_id": self.worker_id})
+                except Exception as e:
+                    print(f"Error reporting health: {e}")
+            await asyncio.sleep(5)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Log Analyzer Coordinator")
